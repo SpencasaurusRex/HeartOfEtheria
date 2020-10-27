@@ -1,6 +1,7 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 public interface IMorph
 {
-    Vector3 MorphPoint(Vector3 point); 
+    void MorphPoints(List<Vector3> points); 
 }

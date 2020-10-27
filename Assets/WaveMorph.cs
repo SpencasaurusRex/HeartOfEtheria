@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 public class WaveMorph : MonoBehaviour, IMorph
 {
@@ -15,9 +16,13 @@ public class WaveMorph : MonoBehaviour, IMorph
         gen.Morph();
     }
 
-    public Vector3 MorphPoint(Vector3 point)
+    public void MorphPoints(List<Vector3> points)
     {
-        float y = Mathf.Sin(point.x * XFactor + point.y * YFactor + point.z * ZFactor + Time.time) * Stretch;
-        return point + new Vector3(0, y, 0);
+        for (int i = 0; i < points.Count; i++)
+        {
+            var point = points[i];
+            float y = Mathf.Sin(point.x * XFactor + point.y * YFactor + point.z * ZFactor + Time.time) * Stretch;    
+            points[i] =  point + new Vector3(0, y, 0);
+        }
     }
 }

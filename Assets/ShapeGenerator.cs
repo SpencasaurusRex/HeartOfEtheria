@@ -27,7 +27,7 @@ public class ShapeGenerator : MonoBehaviour
     List<Vector3> baseVertices = new List<Vector3>();
     List<int> baseIndices = new List<int>();
     List<Vector3> morphedVertices = new List<Vector3>();
-    
+
     void Update()
     {
         Morph();
@@ -64,6 +64,11 @@ public class ShapeGenerator : MonoBehaviour
         if (Shape == Shape.WireCube)
         {
             GenerateColumnSide(Vector3.forward, Vector3.up, Scale, Resolution, baseVertices, baseIndices);
+            GenerateColumnSide(Vector3.right, Vector3.up, Scale, Resolution, baseVertices, baseIndices);
+            GenerateColumnSide(Vector3.left, Vector3.up, Scale, Resolution, baseVertices, baseIndices);
+            GenerateColumnSide(Vector3.back, Vector3.up, Scale, Resolution, baseVertices, baseIndices);
+            GenerateColumnSide(Vector3.right, Vector3.forward, Scale, Resolution, baseVertices, baseIndices);
+            GenerateColumnSide(Vector3.right, Vector3.back, Scale, Resolution, baseVertices, baseIndices);
         }
         else if (Shape == Shape.Sphere)
         {
@@ -90,19 +95,25 @@ public class ShapeGenerator : MonoBehaviour
         {
             UpdateMorphs();   
         }
-        
-        meshFilter = GetComponent<MeshFilter>();
-        Mesh mesh = new Mesh();
 
-        for (int j = 0; j < baseVertices.Count; j++)
+        if (meshFilter == null)
         {
-             var v = baseVertices[j];
-
-             for (int i = 0; i < morphs.Count; i++)
-             {
-                 morphedVertices[j] = morphs[i].MorphPoint(v);
-             }
+            meshFilter = GetComponent<MeshFilter>();
         }
+        
+        Mesh mesh = meshFilter.mesh;
+
+        
+        for (int i = 0; i < baseVertices.Count; i++)
+        {
+            morphedVertices[i] = baseVertices[i];
+        }
+        
+        for (int i = 0; i < morphs.Count; i++)
+        {
+            morphs[i].MorphPoints(morphedVertices);
+        }
+        
 
         mesh.SetVertices(morphedVertices);
         mesh.SetIndices(baseIndices, MeshTopology.Triangles, 0);
@@ -163,46 +174,67 @@ public class ShapeGenerator : MonoBehaviour
         
         int currentIndex = vertices.Count;
         
-        Vector3 startingPoint = ((Shape == Shape.Plane ? Vector3.zero : awayFromCenter) 
-                                 - basisX - basisY) 
-                                * 0.5f * scale;
-        
-        startingPoint += (basisX + basisY) * ColumnWidth * triangleWidth;
+        Vector3 startingPoint = (awayFromCenter - basisX - basisY) * 0.5f * scale 
+                                + (basisX + basisY) * ColumnWidth * triangleWidth;
 
-        for (int z = 0; z <= ColumnWidth; z++)
+        // Add vertices
+        for (int i = 0; i < 2; i++)
         {
-            for (int x = 0; x <= resolution - ColumnWidth * 2; x++)
+            for (int z = 0; z <= ColumnWidth; z++)
             {
-                vertices.Add(startingPoint + (basisX * x + basisZ * z) * triangleWidth);
-                points.Add(startingPoint + (basisX * x + basisZ * z) * triangleWidth);
+                for (int x = 0; x <= resolution - ColumnWidth * 2; x++)
+                {
+                    vertices.Add(startingPoint + (basisX * x + basisZ * z) * triangleWidth);
+                }
             }
-        }
-        
-        
-        
-        int h = resolution - 2 * ColumnWidth + 1;
 
-        // indices.Add(currentIndex + 0);
-        // indices.Add(currentIndex + h);
-        // indices.Add(currentIndex + 1);
-        
-        // points.Clear();
-        // points.Add(vertices[currentIndex]);
-        // points.Add(vertices[currentIndex + h]);
-        // points.Add(vertices[currentIndex + 1]);
-
-        for (int z = 0; z < ColumnWidth; z++)
-        {
-            for (int x = 0; x < resolution - ColumnWidth * 2; x++)
+            for (int z = ColumnWidth; z >= 0; z--)
             {
-                indices.Add(currentIndex + 0 + x + z * h);
-                indices.Add(currentIndex + h + x + z * h);
-                indices.Add(currentIndex + 1 + x + z * h);
-                indices.Add(currentIndex + 1 + x + z * h);
-                indices.Add(currentIndex + h + x + z * h);
-                indices.Add(currentIndex + h + 1 + x + z * h);    
-            }    
+                for (int y = 0; y <= resolution - ColumnWidth * 2; y++)
+                {
+                    vertices.Add(startingPoint + (basisY * y + basisZ * z) * triangleWidth);
+                }
+            }
+            basisX = -basisX;
+            basisY = -basisY;
+            startingPoint = (awayFromCenter - basisX - basisY) * 0.5f * scale 
+                            + (basisX + basisY) * ColumnWidth * triangleWidth;
         }
+
+        // Add indices
+        for (int i = 0; i < 4; i++) 
+        {
+            int h = resolution - 2 * ColumnWidth + 1;
+            for (int z = 0; z < ColumnWidth; z++)
+            {
+                for (int x = 0; x < resolution - ColumnWidth * 2; x++)
+                {
+                    indices.Add(currentIndex + 0 + x + z * h);
+                    indices.Add(currentIndex + h + x + z * h);
+                    indices.Add(currentIndex + 1 + x + z * h);
+                    indices.Add(currentIndex + 1 + x + z * h);
+                    indices.Add(currentIndex + h + x + z * h);
+                    indices.Add(currentIndex + h + 1 + x + z * h);
+                }
+            }
+            currentIndex += (ColumnWidth + 1) * (resolution - ColumnWidth * 2 + 1); 
+        }
+        
+        // for (int z = 0; z < ColumnWidth; z++)
+        // {
+        //     for (int x = 0; x < resolution - ColumnWidth * 2; x++)
+        //     {
+        //         indices.Add(currentIndex + 0 + x + z * h);
+        //         indices.Add(currentIndex + 1 + x + z * h);
+        //         indices.Add(currentIndex + h + x + z * h);
+        //         indices.Add(currentIndex + 1 + x + z * h);
+        //         indices.Add(currentIndex + h + 1 + x + z * h);
+        //         indices.Add(currentIndex + h + x + z * h);
+        //     }    
+        // }
+        //
+        // currentIndex += (ColumnWidth + 1) * (resolution - ColumnWidth * 2 + 1);
+        
     }
 
     void OnDrawGizmosSelected()
