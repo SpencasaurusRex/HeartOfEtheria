@@ -31,13 +31,14 @@ public class ShapeGenerator : MonoBehaviour
     void Update()
     {
         Morph();
+        CreateMesh();
     }
 
     void OnValidate()
     {
         morphs = GetComponents<IMorph>().ToList();
         GenerateBaseShape();
-        Morph();
+        CreateMesh();
     }
 
     public void GenerateBaseShape()
@@ -80,7 +81,7 @@ public class ShapeGenerator : MonoBehaviour
         
         for (int i = 0; i < baseVertices.Count; i++)
         {
-            morphedVertices.Add(Vector3.zero);
+            morphedVertices.Add(baseVertices[i]);
         }
     }
 
@@ -96,14 +97,7 @@ public class ShapeGenerator : MonoBehaviour
             UpdateMorphs();   
         }
 
-        if (meshFilter == null)
-        {
-            meshFilter = GetComponent<MeshFilter>();
-        }
-        
-        Mesh mesh = meshFilter.mesh;
 
-        
         for (int i = 0; i < baseVertices.Count; i++)
         {
             morphedVertices[i] = baseVertices[i];
@@ -113,8 +107,17 @@ public class ShapeGenerator : MonoBehaviour
         {
             morphs[i].MorphPoints(morphedVertices);
         }
-        
+    }
 
+
+    public void CreateMesh()
+    {
+        if (meshFilter == null)
+        {
+            meshFilter = GetComponent<MeshFilter>();
+        }
+        
+        Mesh mesh = meshFilter.mesh;
         mesh.SetVertices(morphedVertices);
         mesh.SetIndices(baseIndices, MeshTopology.Triangles, 0);
 
@@ -124,7 +127,6 @@ public class ShapeGenerator : MonoBehaviour
         meshFilter.mesh = mesh;
     }
 
-    
     void GeneratePlane(Vector3 basisX, Vector3 basisY, float scale, int resolution, List<Vector3> vertices, List<int> indices)
     {
         Vector3 awayFromCenter = -Vector3.Cross(basisX, basisY);
