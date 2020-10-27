@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Numerics;
-using Unity.Profiling;
+﻿using System.Collections.Generic;
 using UnityEngine;
-using Vector3 = UnityEngine.Vector3;
 
 public class ShapeGenerator : MonoBehaviour
 {
@@ -15,11 +11,13 @@ public class ShapeGenerator : MonoBehaviour
     public float XFactor = 1;
     public float YFactor = 1;
     public float ZFactor = 1;
-
+    [Range(1, 20)]
+    public int Resolution = 5;
+    
 
     void Update()
     {
-        
+        Generate();
     }
 
     void OnValidate()
@@ -32,69 +30,22 @@ public class ShapeGenerator : MonoBehaviour
         meshFilter = GetComponent<MeshFilter>();
         Mesh mesh = new Mesh();
         
-        Vector3[] baseVertices = new Vector3[8];
-        float s = Scale * 0.5f;
-        int i = 0;
+        List<Vector3> vertices = new List<Vector3>();
+        List<int> indices = new List<int>();
         
-        baseVertices[i++] = new Vector3(-s, -s, -s);
-        baseVertices[i++] = new Vector3(s, -s, -s);
-        baseVertices[i++] = new Vector3(s, -s, s);
-        baseVertices[i++] = new Vector3(-s, -s, s);
-        baseVertices[i++] = new Vector3(-s, s, -s);
-        baseVertices[i++] = new Vector3(s, s, -s);
-        baseVertices[i++] = new Vector3(s, s, s);
-        baseVertices[i++] = new Vector3(-s, s, s);
-
-        for (int j = 0; j < baseVertices.Length; j++)
+        GeneratePlane(Vector3.right, Vector3.up, Scale, Resolution, vertices, indices);
+        GeneratePlane(Vector3.forward, Vector3.up, Scale, Resolution, vertices, indices);
+        GeneratePlane(Vector3.left, Vector3.up, Scale, Resolution, vertices, indices);
+        GeneratePlane(Vector3.back, Vector3.up, Scale, Resolution, vertices, indices);
+        GeneratePlane(Vector3.right, Vector3.forward, Scale, Resolution, vertices, indices);
+        GeneratePlane(Vector3.right, Vector3.back, Scale, Resolution, vertices, indices);
+        
+        for (int j = 0; j < vertices.Count; j++)
         {
-            var v = baseVertices[j];
+            var v = vertices[j];
             float y = Mathf.Sin(v.x * XFactor + v.y * YFactor + v.z * ZFactor + Time.time) * Stretch;
-            baseVertices[j] += new Vector3(0, y, 0);
+            vertices[j] += new Vector3(0, y, 0);
         }
-        
-        
-        Vector3[] vertices = new Vector3[24];
-        i = 0;
-        // bottom
-        vertices[i++] = baseVertices[0];
-        vertices[i++] = baseVertices[1];
-        vertices[i++] = baseVertices[2];
-        vertices[i++] = baseVertices[3];
-        // Front
-        vertices[i++] = baseVertices[4];
-        vertices[i++] = baseVertices[5];
-        vertices[i++] = baseVertices[1];
-        vertices[i++] = baseVertices[0];
-        // Right
-        vertices[i++] = baseVertices[5];
-        vertices[i++] = baseVertices[6];
-        vertices[i++] = baseVertices[2];
-        vertices[i++] = baseVertices[1];
-        // Left
-        vertices[i++] = baseVertices[7];
-        vertices[i++] = baseVertices[4];
-        vertices[i++] = baseVertices[0];
-        vertices[i++] = baseVertices[3];
-        // Back
-        vertices[i++] = baseVertices[6];
-        vertices[i++] = baseVertices[7];
-        vertices[i++] = baseVertices[3];
-        vertices[i++] = baseVertices[2];
-        // Top
-        vertices[i++] = baseVertices[7];
-        vertices[i++] = baseVertices[6];
-        vertices[i++] = baseVertices[5];
-        vertices[i++] = baseVertices[4];
-        
-        i = 0;
-        int[] indices = new int[36];
-        for (int v = 0; v < 24; v += 4)
-        {
-            indices[i++] = v + 0; indices[i++] = v + 1; indices[i++] = v + 2;
-            indices[i++] = v + 0; indices[i++] = v + 2; indices[i++] = v + 3;
-        }
-        
-        GeneratePlane(Vector3.forward, Vector3.up, Scale, 0, 5);
         
         mesh.SetVertices(vertices);
         mesh.SetIndices(indices, MeshTopology.Triangles, 0);
@@ -102,23 +53,15 @@ public class ShapeGenerator : MonoBehaviour
         mesh.RecalculateNormals();    
         mesh.RecalculateBounds();
         
-        
-        
         meshFilter.mesh = mesh;
     }
-
-    List<Vector3> planePoints = new List<Vector3>();
     
-    (List<Vector3>, List<int>) GeneratePlane(Vector3 basisX, Vector3 basisY, float scale, int indexOffset, int resolution)
+    void GeneratePlane(Vector3 basisX, Vector3 basisY, float scale, int resolution, List<Vector3> vertices, List<int> indices)
     {
-        planePoints.Clear();
-        List<Vector3> vertices = new List<Vector3>();
-        List<int> indices = new List<int>();
-        
         Vector3 awayFromCenter = -Vector3.Cross(basisX, basisY);
         Vector3 startingPoint = (awayFromCenter - basisX - basisY) * 0.5f * scale; 
         
-        int currentIndex = indexOffset;
+        int currentIndex = vertices.Count;
 
         for (float y = 0; y <= resolution; y++)
         {
@@ -127,17 +70,22 @@ public class ShapeGenerator : MonoBehaviour
             {
                 float xt = x / resolution;
                 Vector3 point = startingPoint + (yt * basisY + xt * basisX) * Scale;
-                planePoints.Add(point);
+                vertices.Add(point);
             }
         }
-        return (vertices, indices);
-    }
-
-    void OnDrawGizmos()
-    {
-        foreach (var planePoint in planePoints)
+        
+        var w = resolution + 1;
+        for (int j = 0; j < resolution; j++)
         {
-            Gizmos.DrawCube(planePoint, Vector3.one * 0.1f);    
+            for (int i = 0; i < resolution; i++)
+            {
+                indices.Add(currentIndex + 0 + i + j * w);
+                indices.Add(currentIndex + w + 1 + i + j * w);
+                indices.Add(currentIndex + 1 + i + j * w);
+                indices.Add(currentIndex + 0 + i + j * w);
+                indices.Add(currentIndex + w + i + j * w);
+                indices.Add(currentIndex + w + 1 + i + j * w);    
+            }            
         }
     }
 }
