@@ -1,10 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using UnityEngine;
-using Vector3 = UnityEngine.Vector3;
-
 
 public enum Shape
 {
@@ -28,76 +24,94 @@ public class ShapeGenerator : MonoBehaviour
 
     List<IMorph> morphs;
     
+    List<Vector3> baseVertices = new List<Vector3>();
+    List<int> baseIndices = new List<int>();
+    List<Vector3> morphedVertices = new List<Vector3>();
+    
     void Update()
     {
-        Generate();
+        Morph();
     }
 
     void OnValidate()
     {
         morphs = GetComponents<IMorph>().ToList();
-        Generate();
+        GenerateBaseShape();
+        Morph();
     }
 
-    void Generate()
+    public void GenerateBaseShape()
     {
-        meshFilter = GetComponent<MeshFilter>();
-        Mesh mesh = new Mesh();
-
-        List<Vector3> vertices = new List<Vector3>();
-        List<int> indices = new List<int>();
-
+        baseVertices.Clear();
+        baseIndices.Clear();
+        morphedVertices.Clear();
         
-        GeneratePlane(Vector3.right, Vector3.up, Scale, Resolution, vertices, indices);
+        GeneratePlane(Vector3.right, Vector3.up, Scale, Resolution, baseVertices, baseIndices);
         if (Shape == Shape.Plane)
         {
             // Back side of plane
-            GeneratePlane(Vector3.left, Vector3.up, Scale, Resolution, vertices, indices);
+            GeneratePlane(Vector3.left, Vector3.up, Scale, Resolution, baseVertices, baseIndices);
         }
         else
         {
-            GeneratePlane(Vector3.forward, Vector3.up, Scale, Resolution, vertices, indices);
-            GeneratePlane(Vector3.left, Vector3.up, Scale, Resolution, vertices, indices);
-            GeneratePlane(Vector3.back, Vector3.up, Scale, Resolution, vertices, indices);
-            GeneratePlane(Vector3.right, Vector3.forward, Scale, Resolution, vertices, indices);
-            GeneratePlane(Vector3.right, Vector3.back, Scale, Resolution, vertices, indices);
+            GeneratePlane(Vector3.forward, Vector3.up, Scale, Resolution, baseVertices, baseIndices);
+            GeneratePlane(Vector3.left, Vector3.up, Scale, Resolution, baseVertices, baseIndices);
+            GeneratePlane(Vector3.back, Vector3.up, Scale, Resolution, baseVertices, baseIndices);
+            GeneratePlane(Vector3.right, Vector3.forward, Scale, Resolution, baseVertices, baseIndices);
+            GeneratePlane(Vector3.right, Vector3.back, Scale, Resolution, baseVertices, baseIndices);
         }
 
         if (Shape == Shape.WireCube)
         {
-            GenerateColumnSide(Vector3.forward, Vector3.up, Scale, Resolution, vertices, indices);
+            GenerateColumnSide(Vector3.forward, Vector3.up, Scale, Resolution, baseVertices, baseIndices);
+        }
+        else if (Shape == Shape.Sphere)
+        {
+            for (int i = 0; i < baseVertices.Count; i++)
+            {
+                baseVertices[i] = baseVertices[i].normalized;                
+            }
         }
         
+        for (int i = 0; i < baseVertices.Count; i++)
+        {
+            morphedVertices.Add(Vector3.zero);
+        }
+    }
+
+    public void UpdateMorphs()
+    {
+        morphs = GetComponents<IMorph>().ToList();
+    }
+    
+    public void Morph()
+    {
         if (morphs == null)
         {
-            morphs = GetComponents<IMorph>().ToList();
+            UpdateMorphs();   
         }
         
-        for (int j = 0; j < vertices.Count; j++)
-        {
-             var v = vertices[j];
+        meshFilter = GetComponent<MeshFilter>();
+        Mesh mesh = new Mesh();
 
-             if (Shape == Shape.Sphere)
-             {
-                 vertices[j] = vertices[j].normalized * Scale;
-             }
+        for (int j = 0; j < baseVertices.Count; j++)
+        {
+             var v = baseVertices[j];
 
              for (int i = 0; i < morphs.Count; i++)
              {
-                 vertices[j] = morphs[i].MorphPoint(vertices[j]);
+                 morphedVertices[j] = morphs[i].MorphPoint(v);
              }
         }
 
-        mesh.SetVertices(vertices);
-        mesh.SetIndices(indices, MeshTopology.Triangles, 0);
+        mesh.SetVertices(morphedVertices);
+        mesh.SetIndices(baseIndices, MeshTopology.Triangles, 0);
 
         mesh.RecalculateNormals();    
         mesh.RecalculateBounds();
         
         meshFilter.mesh = mesh;
     }
-
-
 
     
     void GeneratePlane(Vector3 basisX, Vector3 basisY, float scale, int resolution, List<Vector3> vertices, List<int> indices)
@@ -191,7 +205,7 @@ public class ShapeGenerator : MonoBehaviour
         }
     }
 
-    void OnDrawGizmos()
+    void OnDrawGizmosSelected()
     {
         foreach (var point in points)
         {
